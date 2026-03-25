@@ -1,9 +1,5 @@
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+node_modules/
+dist/
+gogi.db
 *.db
-*.db-shm
-*.db-wal
+.env
