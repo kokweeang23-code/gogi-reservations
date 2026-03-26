@@ -34,6 +34,28 @@ function ownerAlertUrl(reservation: any, coversBooked: number): string {
 }
 
 export function registerRoutes(httpServer: Server, app: Express) {
+  // ─── Test email endpoint (remove after testing) ──────────────────────────
+  app.get("/api/test-email", async (req, res) => {
+    try {
+      const testReservation = {
+        id: 999,
+        name: "Test Guest",
+        phone: "98212766",
+        email: "gogi.reservations@gmail.com",
+        date: "2026-03-30",
+        time: "19:00",
+        partySize: 2,
+        notes: "Test booking",
+      };
+      await sendOwnerAlert(testReservation, 10);
+      await sendCustomerConfirmation(testReservation);
+      res.json({ success: true, message: "Emails sent successfully" });
+    } catch (err: any) {
+      console.error("[EMAIL TEST FAIL]", err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // ─── Public: Time slots ─────────────────────────────────────────────────────
   app.get("/api/time-slots", (_req, res) => {
     res.json({ slots: TIME_SLOTS });
