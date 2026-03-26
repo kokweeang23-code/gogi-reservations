@@ -3,6 +3,7 @@ import type { Server } from "http";
 import { z } from "zod";
 import { storage, TIME_SLOTS, Storage } from "./storage";
 import { insertReservationSchema } from "@shared/schema";
+import { sendCustomerConfirmation, sendOwnerAlert } from "./email";
 
 // Simple admin token
 const ADMIN_TOKEN = "gogi-admin-2024";
@@ -89,6 +90,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
 
     const reservation = storage.createReservation(parsed.data);
+
+    // Fire emails server-side — non-blocking, errors logged but don't fail the request
+    sendOwnerAlert(reservation, avail.coversBooked).catch(e =>
+      console.error("Owner alert email failed:", e.message)
+    );
+    sendCustomerConfirmation(reservation).catch(e =>
+      console.error("Customer confirmation email failed:", e.message)
+    );
 
     // Customer WhatsApp confirmation URL
     const customerMsg = encodeURIComponent(

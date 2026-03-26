@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Calendar, Clock, Users, Phone, Mail, CheckCircle2,
-  MessageCircle, ChevronRight, ChevronLeft, Flame, MapPin
+  ChevronRight, ChevronLeft, Flame, MapPin
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -303,7 +303,7 @@ export default function BookingPage() {
 
   // ─── Success step ─────────────────────────────────────────────────────────
   if (step === "success" && confirmData) {
-    const { reservation, whatsappUrl, ownerAlertUrl } = confirmData as any;
+    const { reservation } = confirmData as any;
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
@@ -323,35 +323,21 @@ export default function BookingPage() {
                 <div className="flex justify-between"><span className="text-muted-foreground">Party</span><span className="font-medium">{reservation.partySize} {reservation.partySize === 1 ? "person" : "persons"}</span></div>
               </div>
 
-              {/* Step 1: Confirm to guest */}
-              <p className="text-xs text-muted-foreground text-left mb-2 font-semibold uppercase tracking-wide">Step 1 — Send to guest</p>
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white rounded-xl py-3 px-4 font-semibold transition-colors mb-4"
-                data-testid="link-whatsapp-confirmation"
-              >
-                <MessageCircle className="w-5 h-5" />
-                Send Confirmation to Guest
-              </a>
-
-              {/* Step 2: Alert restaurant owner */}
-              <p className="text-xs text-muted-foreground text-left mb-2 font-semibold uppercase tracking-wide">Step 2 — Notify restaurant</p>
-              <a
-                href={ownerAlertUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-[#1e1a16] hover:bg-[#2d2925] text-white rounded-xl py-3 px-4 font-semibold transition-colors mb-6"
-                data-testid="link-owner-alert"
-              >
-                <MessageCircle className="w-5 h-5" />
-                Alert Restaurant
-              </a>
+              {/* Auto email notice */}
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-6 text-left">
+                <p className="text-emerald-700 dark:text-emerald-400 text-sm font-medium flex items-center gap-2">
+                  <Mail className="w-4 h-4 shrink-0" />
+                  Confirmation emails sent automatically
+                </p>
+                <p className="text-emerald-600/70 dark:text-emerald-500/70 text-xs mt-1">
+                  {reservation.email
+                    ? `A confirmation has been sent to ${reservation.email} and the restaurant.`
+                    : "The restaurant has been notified of your booking."}
+                </p>
+              </div>
 
               <Button
-                variant="outline"
-                className="w-full"
+                className="w-full bg-primary hover:bg-primary/90"
                 onClick={() => { setStep("form"); form.reset(); setConfirmData(null); }}
               >
                 Make Another Booking
