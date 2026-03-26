@@ -1,21 +1,59 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { z } from "zod";
-import { storage, TIME_SLOTS } from "./storage";
+import { storage, TIME_SLOTS, Storage } from "./storage";
 import { insertReservationSchema } from "@shared/schema";
 
-// Simple admin token (in production this would be env-based)
+// Simple admin token
 const ADMIN_TOKEN = "gogi-admin-2024";
+
+// Owner WhatsApp number (Singapore)
+const OWNER_PHONE = "6598212766";
 
 function isAdmin(req: any): boolean {
   const auth = req.headers["x-admin-token"] || req.query.adminToken;
   return auth === ADMIN_TOKEN;
 }
 
+// Generate WhatsApp click-to-chat URL for owner alert
+function ownerAlertUrl(reservation: any, coversBooked: number): string {
+  const totalAfter = coversBooked + reservation.partySize;
+  const msg = encodeURIComponent(
+    `🔔 NEW BOOKING — The Gogi\n\n` +
+    `👤 Guest: ${reservation.name}\n` +
+    `📞 Phone: +65${reservation.phone.replace(/\D/g, "")}\n` +
+    `📅 Date: ${reservation.date}\n` +
+    `⏰ Time: ${reservation.time}\n` +
+    `👥 Party: ${reservation.partySize} pax\n` +
+    `${reservation.notes ? `📝 Notes: ${reservation.notes}\n` : ""}` +
+    `\n📊 Slot load: ${totalAfter}/${Storage.MAX_COVERS_PER_SLOT} covers\n` +
+    `🔗 Dashboard: https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/#/admin`
+  );
+  return `https://wa.me/${OWNER_PHONE}?text=${msg}`;
+}
+
 export function registerRoutes(httpServer: Server, app: Express) {
   // ─── Public: Time slots ─────────────────────────────────────────────────────
   app.get("/api/time-slots", (_req, res) => {
     res.json({ slots: TIME_SLOTS });
+  });
+
+  // ─── Public: Slot statuses for a date (available / filling / full) ───────────
+  app.get("/api/slot-status", (req, res) => {
+    const { date, partySize } = req.query as Record<string, string>;
+    if (!date || !partySize) return res.status(400).json({ error: "date and partySize required" });
+    const size = parseInt(partySize);
+    const statuses: Record<string, { status: string; coversBooked: number; spotsLeft: number }> = {};
+    for (const slot of TIME_SLOTS) {
+      const covers = storage.getCoversInWindow(date, slot);
+      const spotsLeft = Storage.MAX_COVERS_PER_SLOT - covers;
+      let status: string;
+      if (covers + size > Storage.MAX_COVERS_PER_SLOT) status = "full";
+      else if (covers >= Storage.MAX_COVERS_PER_SLOT * 0.75) status = "filling";
+      else status = "available";
+      statuses[slot] = { status, coversBooked: covers, spotsLeft };
+    }
+    res.json(statuses);
   });
 
   // ─── Public: Check availability ─────────────────────────────────────────────
@@ -41,19 +79,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
       return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
     }
 
-    // Double-booking guard
+    // Capacity guard — checks covers in 90-min window
     const avail = storage.checkAvailability(parsed.data.date, parsed.data.time, parsed.data.partySize);
     if (!avail.available) {
       return res.status(409).json({
-        error: "No tables available for this time",
+        error: "This time slot is fully booked. Please choose another time.",
         availableSlots: avail.availableSlots,
       });
     }
 
     const reservation = storage.createReservation(parsed.data);
 
-    // Generate WhatsApp confirmation URL (pre-filled message)
-    const msg = encodeURIComponent(
+    // Customer WhatsApp confirmation URL
+    const customerMsg = encodeURIComponent(
       `🔥 Booking Confirmed — The Gogi @ Alexandra Central\n\n` +
       `Dear ${reservation.name},\n` +
       `Your reservation has been confirmed!\n\n` +
@@ -62,15 +100,21 @@ export function registerRoutes(httpServer: Server, app: Express) {
       `👥 Party: ${reservation.partySize} pax\n\n` +
       `📍 321 Alexandra Rd, #02-01 Alexandra Central, Singapore 159971\n` +
       `📞 +65 8181 7221\n\n` +
-      `See you soon! Please arrive 5 min early. Reply to cancel.`
+      `See you soon! Please arrive 5 min early. To cancel, reply to this message.`
     );
-
-    // Phone number should be in international format, remove leading 0 or +
     const rawPhone = reservation.phone.replace(/\D/g, "");
-    const phone = rawPhone.startsWith("65") ? rawPhone : `65${rawPhone}`;
-    const whatsappUrl = `https://wa.me/${phone}?text=${msg}`;
+    const custPhone = rawPhone.startsWith("65") ? rawPhone : `65${rawPhone}`;
+    const whatsappUrl = `https://wa.me/${custPhone}?text=${customerMsg}`;
 
-    res.status(201).json({ reservation, whatsappUrl, confirmationMessage: decodeURIComponent(msg) });
+    // Owner alert WhatsApp URL — returned so dashboard can trigger it
+    const alertUrl = ownerAlertUrl(reservation, avail.coversBooked);
+
+    res.status(201).json({
+      reservation,
+      whatsappUrl,
+      ownerAlertUrl: alertUrl,
+      confirmationMessage: decodeURIComponent(customerMsg),
+    });
   });
 
   // ─── Admin: Get all reservations ────────────────────────────────────────────

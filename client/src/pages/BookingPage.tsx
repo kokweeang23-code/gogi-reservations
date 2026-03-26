@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, API_BASE } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,6 +195,18 @@ export default function BookingPage() {
     queryKey: ["/api/time-slots"],
   });
 
+  // Fetch slot statuses whenever date or party size changes
+  const watchedDate2 = form.watch("date");
+  const watchedParty = form.watch("partySize");
+  const { data: slotStatuses } = useQuery<Record<string, { status: string; spotsLeft: number }>>(
+    {
+      queryKey: [`${API_BASE}/api/slot-status`, watchedDate2, watchedParty],
+      queryFn: () =>
+        fetch(`${API_BASE}/api/slot-status?date=${watchedDate2}&partySize=${watchedParty}`).then(r => r.json()),
+      enabled: !!watchedDate2,
+    }
+  );
+
   // Submit reservation
   const bookMutation = useMutation({
     mutationFn: (data: BookingForm) =>
@@ -202,12 +214,16 @@ export default function BookingPage() {
     onSuccess: (data) => {
       setConfirmData(data);
       setStep("success");
+      // Auto-open owner WhatsApp alert in a new tab
+      if (data.ownerAlertUrl) {
+        window.open(data.ownerAlertUrl, "_blank", "noopener,noreferrer");
+      }
     },
     onError: (err: any) => {
       toast({
         variant: "destructive",
-        title: "Booking failed",
-        description: err.message || "No tables available for this time. Please try another slot.",
+        title: "Slot fully booked",
+        description: "This time slot has reached capacity. Please choose another time.",
       });
     },
   });
@@ -405,26 +421,43 @@ export default function BookingPage() {
               {/* Time slots */}
               <div className="space-y-2">
                 <Label>Time</Label>
+                {watchedDate2 && !slotStatuses && (
+                  <p className="text-xs text-muted-foreground">Checking availability…</p>
+                )}
                 <div className="space-y-3">
                   {lunchSlots.length > 0 && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-1.5 uppercase tracking-wide font-medium">Lunch</p>
                       <div className="grid grid-cols-4 gap-1.5">
-                        {lunchSlots.map(slot => (
-                          <button
-                            key={slot}
-                            type="button"
-                            data-testid={`slot-${slot}`}
-                            className={`text-sm py-2 px-1 rounded-lg border transition-colors font-medium ${
-                              form.watch("time") === slot
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background border-border hover:border-primary hover:text-primary"
-                            }`}
-                            onClick={() => form.setValue("time", slot, { shouldValidate: true })}
-                          >
-                            {slot}
-                          </button>
-                        ))}
+                        {lunchSlots.map(slot => {
+                          const st = slotStatuses?.[slot];
+                          const isFull = st?.status === "full";
+                          const isFilling = st?.status === "filling";
+                          const isSelected = form.watch("time") === slot;
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              disabled={isFull}
+                              data-testid={`slot-${slot}`}
+                              className={`relative text-sm py-2 px-1 rounded-lg border transition-colors font-medium ${
+                                isSelected
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : isFull
+                                    ? "bg-muted border-border text-muted-foreground/40 cursor-not-allowed line-through"
+                                    : isFilling
+                                      ? "bg-amber-50 border-amber-300 text-amber-700 hover:border-amber-500 dark:bg-amber-900/20 dark:border-amber-600 dark:text-amber-400"
+                                      : "bg-background border-border hover:border-primary hover:text-primary"
+                              }`}
+                              onClick={() => !isFull && form.setValue("time", slot, { shouldValidate: true })}
+                            >
+                              {slot}
+                              {isFilling && !isSelected && (
+                                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400" title="Filling fast" />
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -432,25 +465,46 @@ export default function BookingPage() {
                     <div>
                       <p className="text-xs text-muted-foreground mb-1.5 uppercase tracking-wide font-medium">Dinner</p>
                       <div className="grid grid-cols-4 gap-1.5">
-                        {dinnerSlots.map(slot => (
-                          <button
-                            key={slot}
-                            type="button"
-                            data-testid={`slot-${slot}`}
-                            className={`text-sm py-2 px-1 rounded-lg border transition-colors font-medium ${
-                              form.watch("time") === slot
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background border-border hover:border-primary hover:text-primary"
-                            }`}
-                            onClick={() => form.setValue("time", slot, { shouldValidate: true })}
-                          >
-                            {slot}
-                          </button>
-                        ))}
+                        {dinnerSlots.map(slot => {
+                          const st = slotStatuses?.[slot];
+                          const isFull = st?.status === "full";
+                          const isFilling = st?.status === "filling";
+                          const isSelected = form.watch("time") === slot;
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              disabled={isFull}
+                              data-testid={`slot-${slot}`}
+                              className={`relative text-sm py-2 px-1 rounded-lg border transition-colors font-medium ${
+                                isSelected
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : isFull
+                                    ? "bg-muted border-border text-muted-foreground/40 cursor-not-allowed line-through"
+                                    : isFilling
+                                      ? "bg-amber-50 border-amber-300 text-amber-700 hover:border-amber-500 dark:bg-amber-900/20 dark:border-amber-600 dark:text-amber-400"
+                                      : "bg-background border-border hover:border-primary hover:text-primary"
+                              }`}
+                              onClick={() => !isFull && form.setValue("time", slot, { shouldValidate: true })}
+                            >
+                              {slot}
+                              {isFilling && !isSelected && (
+                                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400" title="Filling fast" />
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
                 </div>
+                {/* Legend */}
+                {slotStatuses && (
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Filling fast</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted-foreground/30 inline-block" /> Full</span>
+                  </div>
+                )}
                 {form.formState.errors.time && (
                   <p className="text-destructive text-xs">{form.formState.errors.time.message}</p>
                 )}

@@ -127,7 +127,7 @@ function generateTimeSlots(): string[] {
 
 export const TIME_SLOTS = generateTimeSlots();
 
-class Storage implements IStorage {
+export class Storage implements IStorage {
   getAllReservations(): Reservation[] {
     return db.select().from(reservations).all();
   }
@@ -219,22 +219,56 @@ class Storage implements IStorage {
     return allTables[0] ?? null;
   }
 
+  // ─── Capacity: max covers per 90-min window ─────────────────────────────────
+  // Restaurant seats 80 total. Cap at 75 to leave room for walk-ins.
+  static readonly MAX_COVERS_PER_SLOT = 75;
+
+  getCoversInWindow(date: string, time: string): number {
+    const allDayRes = db.select().from(reservations)
+      .where(and(eq(reservations.date, date), ne(reservations.status, "cancelled")))
+      .all();
+    const [reqH, reqM] = time.split(":").map(Number);
+    const reqMinutes = reqH * 60 + reqM;
+    return allDayRes
+      .filter(r => {
+        const [rH, rM] = r.time.split(":").map(Number);
+        return Math.abs(reqH * 60 + reqM - (rH * 60 + rM)) < 90;
+      })
+      .reduce((sum, r) => sum + r.partySize, 0);
+  }
+
+  getSlotStatus(date: string, time: string): "available" | "filling" | "full" {
+    const covers = this.getCoversInWindow(date, time);
+    const max = Storage.MAX_COVERS_PER_SLOT;
+    if (covers >= max) return "full";
+    if (covers >= max * 0.75) return "filling"; // 75%+ booked = "filling fast"
+    return "available";
+  }
+
   checkAvailability(date: string, time: string, partySize: number): {
     available: boolean;
     availableSlots: string[];
     suggestedTable: Table | null;
+    coversBooked: number;
+    maxCovers: number;
+    slotStatus: string;
   } {
-    const suggestedTable = this.findBestTable(date, time, partySize);
+    const coversBooked = this.getCoversInWindow(date, time);
+    const capacityOk = (coversBooked + partySize) <= Storage.MAX_COVERS_PER_SLOT;
 
-    // Find all available slots for that date
+    // Find all available slots for that date & party size
     const availableSlots = TIME_SLOTS.filter(slot => {
-      return this.findBestTable(date, slot, partySize) !== null;
+      const slotCovers = this.getCoversInWindow(date, slot);
+      return (slotCovers + partySize) <= Storage.MAX_COVERS_PER_SLOT;
     });
 
     return {
-      available: suggestedTable !== null,
+      available: capacityOk,
       availableSlots,
-      suggestedTable,
+      suggestedTable: null,
+      coversBooked,
+      maxCovers: Storage.MAX_COVERS_PER_SLOT,
+      slotStatus: this.getSlotStatus(date, time),
     };
   }
 
