@@ -34,6 +34,11 @@ function ownerAlertUrl(reservation: any, coversBooked: number): string {
 }
 
 export function registerRoutes(httpServer: Server, app: Express) {
+  // ─── Simple echo test (remove after debugging) ──────────────────────────────
+  app.post("/api/ping", (req, res) => {
+    res.json({ pong: true, body: req.body });
+  });
+
   // ─── Test email endpoint (remove after testing) ──────────────────────────
   app.get("/api/test-email", async (req, res) => {
     try {
