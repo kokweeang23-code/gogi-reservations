@@ -34,9 +34,26 @@ function ownerAlertUrl(reservation: any, coversBooked: number): string {
 }
 
 export function registerRoutes(httpServer: Server, app: Express) {
-  // ─── Simple echo test (remove after debugging) ──────────────────────────────
+  // ─── Simple echo test ───────────────────────────────────────
   app.post("/api/ping", (req, res) => {
     res.json({ pong: true, body: req.body });
+  });
+
+  // ─── Network connectivity test ─────────────────────────────────
+  app.post("/api/test-webhook", async (req, res) => {
+    const url = "https://hook.eu1.make.com/i22xy764naxf89509dbjir3x0r63b619";
+    const start = Date.now();
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ test: true, ts: new Date().toISOString() }),
+      });
+      const text = await r.text();
+      res.json({ ok: true, status: r.status, body: text, ms: Date.now() - start });
+    } catch (e: any) {
+      res.json({ ok: false, error: e.message, cause: e.cause?.message, ms: Date.now() - start });
+    }
   });
 
   // ─── Admin redirect — email clients strip # so we use an /api/ route ───
