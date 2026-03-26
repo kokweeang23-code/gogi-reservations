@@ -28,7 +28,7 @@ function ownerAlertUrl(reservation: any, coversBooked: number): string {
     `👥 Party: ${reservation.partySize} pax\n` +
     `${reservation.notes ? `📝 Notes: ${reservation.notes}\n` : ""}` +
     `\n📊 Slot load: ${totalAfter}/${Storage.MAX_COVERS_PER_SLOT} covers\n` +
-    `🔗 Dashboard: https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/?admin`
+    `🔗 Dashboard: https://gogi-reservations-production.up.railway.app/go-admin`
   );
   return `https://wa.me/${OWNER_PHONE}?text=${msg}`;
 }
@@ -37,6 +37,17 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ─── Simple echo test (remove after debugging) ──────────────────────────────
   app.post("/api/ping", (req, res) => {
     res.json({ pong: true, body: req.body });
+  });
+
+  // ─── Admin redirect — email clients strip # so we use a real server route ───
+  // Email link points to https://gogi-reservations-production.up.railway.app/go-admin
+  // Server responds with JS redirect to the Perplexity frontend /#/admin
+  app.get("/go-admin", (_req, res) => {
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Redirecting to Staff Dashboard...</title>
+<script>
+window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/#/admin");
+</script></head><body><p>Redirecting to staff dashboard...</p></body></html>`);
   });
 
   // ─── Test email endpoint (remove after testing) ──────────────────────────
@@ -144,16 +155,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
             partySize: snap.partySize,
             notes: snap.notes || "",
             coversAfter: covers + snap.partySize,
-            dashboardUrl: "https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/?admin",
+            dashboardUrl: "https://gogi-reservations-production.up.railway.app/go-admin",
           }),
         })
           .then(() => console.log(`[WEBHOOK OK] Make.com notified for booking #${snap.id}`))
           .catch((e: any) => console.error(`[WEBHOOK FAIL] Make.com:`, e.message));
       }
-      // Fallback Resend email alert
-      sendOwnerAlert(snap, covers)
-        .then(() => console.log(`[EMAIL OK] Owner alert #${snap.id}`))
-        .catch((e: any) => console.error(`[EMAIL FAIL] Owner:`, e.message));
     }, 0);
   });
 
