@@ -126,8 +126,4 @@ app.use((req, res, next) => {
   );
 })();
 
-// Version diagnostic endpoint - bypasses CDN cache via /api prefix
-// Must be before static middleware
-app.get("/api/version", (_req, res) => {
-  res.json({ version: "v3-make-only", built: new Date().toISOString() });
-});
+
