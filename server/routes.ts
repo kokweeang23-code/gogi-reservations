@@ -91,13 +91,20 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     const reservation = storage.createReservation(parsed.data);
 
-    // Fire emails server-side — non-blocking, errors logged but don't fail the request
-    sendOwnerAlert(reservation, avail.coversBooked).catch(e =>
-      console.error("Owner alert email failed:", e.message)
-    );
-    sendCustomerConfirmation(reservation).catch(e =>
-      console.error("Customer confirmation email failed:", e.message)
-    );
+    // Fire emails server-side — run both, log all errors clearly
+    Promise.allSettled([
+      sendOwnerAlert(reservation, avail.coversBooked),
+      sendCustomerConfirmation(reservation),
+    ]).then(results => {
+      results.forEach((r, i) => {
+        const label = i === 0 ? "Owner alert" : "Customer confirmation";
+        if (r.status === "fulfilled") {
+          console.log(`[EMAIL OK] ${label} sent for booking #${reservation.id}`);
+        } else {
+          console.error(`[EMAIL FAIL] ${label} error:`, r.reason?.message || r.reason);
+        }
+      });
+    });
 
     // Customer WhatsApp confirmation URL
     const customerMsg = encodeURIComponent(
