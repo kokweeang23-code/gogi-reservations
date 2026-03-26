@@ -1,13 +1,17 @@
 import { Resend } from "resend";
 import dns from "dns";
-import https from "https";
-// Force IPv4 so Railway (which blocks IPv6 outbound) can reach Resend's API
+// Force IPv4 for all DNS lookups
 dns.setDefaultResultOrder("ipv4first");
 
-// Use a custom HTTPS agent with a short connection timeout
-const agent = new https.Agent({ family: 4, timeout: 8000 });
-
 const resend = new Resend(process.env.RESEND_API_KEY || "re_5pyzUKq2_Cqamy5qEsfo8eVfS5jaytLqs");
+
+// Wrap any email send with a 5-second timeout so failures never block the server
+async function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`Email timeout after ${ms}ms`)), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
 
 // Resend free tier: can only send TO your own account email without domain verification
 // From address must use onboarding@resend.dev until a domain is verified
@@ -66,12 +70,12 @@ export async function sendOwnerAlert(reservation: any, coversBooked: number): Pr
     </div>
   `;
 
-  const result = await resend.emails.send({
+  const result = await withTimeout(resend.emails.send({
     from: FROM,
     to: [OWNER_EMAIL],
     subject: `🔔 New Booking #${reservation.id} — ${reservation.name} · ${reservation.partySize} pax · ${reservation.date} ${reservation.time}`,
     html,
-  });
+  }));
 
   if (result.error) throw new Error(result.error.message);
 }
@@ -110,12 +114,12 @@ export async function sendCustomerConfirmation(reservation: any): Promise<void> 
     </div>
   `;
 
-  const result = await resend.emails.send({
+  const result = await withTimeout(resend.emails.send({
     from: FROM,
     to: [reservation.email],
     subject: `✅ Booking Confirmed — ${friendlyDate(reservation.date)} at ${reservation.time}`,
     html,
-  });
+  }));
 
   if (result.error) throw new Error(result.error.message);
 }
