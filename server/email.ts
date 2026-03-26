@@ -1,4 +1,7 @@
 import { Resend } from "resend";
+import dns from "dns";
+// Force IPv4 so Railway (which blocks IPv6 outbound) can reach Resend's API
+dns.setDefaultResultOrder("ipv4first");
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_5pyzUKq2_Cqamy5qEsfo8eVfS5jaytLqs");
 

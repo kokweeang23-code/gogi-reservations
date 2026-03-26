@@ -113,22 +113,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     const reservation = storage.createReservation(parsed.data);
 
-    // Fire emails after response is sent — non-blocking
-    setImmediate(async () => {
-      const results = await Promise.allSettled([
-        sendOwnerAlert(reservation, avail.coversBooked),
-        sendCustomerConfirmation(reservation),
-      ]);
-      results.forEach((r, i) => {
-        const label = i === 0 ? "Owner alert" : "Customer confirmation";
-        if (r.status === "fulfilled") {
-          console.log(`[EMAIL OK] ${label} sent for booking #${reservation.id}`);
-        } else {
-          console.error(`[EMAIL FAIL] ${label}:`, (r.reason as any)?.message || String(r.reason));
-        }
-      });
-    });
-
     // Customer WhatsApp confirmation URL
     const customerMsg = encodeURIComponent(
       `🔥 Booking Confirmed — The Gogi @ Alexandra Central\n\n` +
@@ -148,12 +132,30 @@ export function registerRoutes(httpServer: Server, app: Express) {
     // Owner alert WhatsApp URL — returned so dashboard can trigger it
     const alertUrl = ownerAlertUrl(reservation, avail.coversBooked);
 
+    // Send response immediately — customer never waits for email
     res.status(201).json({
       reservation,
       whatsappUrl,
       ownerAlertUrl: alertUrl,
       confirmationMessage: decodeURIComponent(customerMsg),
     });
+
+    // Fire emails after response is flushed — completely decoupled
+    const coversBooked = avail.coversBooked;
+    setTimeout(async () => {
+      try {
+        await sendOwnerAlert(reservation, coversBooked);
+        console.log(`[EMAIL OK] Owner alert sent for booking #${reservation.id}`);
+      } catch (e: any) {
+        console.error(`[EMAIL FAIL] Owner alert:`, e.message);
+      }
+      try {
+        await sendCustomerConfirmation(reservation);
+        console.log(`[EMAIL OK] Customer confirmation sent for booking #${reservation.id}`);
+      } catch (e: any) {
+        console.error(`[EMAIL FAIL] Customer confirmation:`, e.message);
+      }
+    }, 100);
   });
 
   // ─── Admin: Get all reservations ────────────────────────────────────────────
