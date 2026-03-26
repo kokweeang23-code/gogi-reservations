@@ -1,8 +1,19 @@
-import { type Express } from "express";
+import express, { type Express } from "express";
+import fs from "fs";
+import path from "path";
 
-// Static file serving is disabled — frontend is served from Perplexity CDN.
-// Railway only serves /api/* routes. The SPA catch-all caused Railway's CDN
-// to cache index.html for all paths, breaking API routes.
-export function serveStatic(_app: Express) {
-  // no-op: do NOT serve static files from Railway
+export function serveStatic(app: Express) {
+  const distPath = path.resolve(__dirname, "public");
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+    );
+  }
+
+  app.use(express.static(distPath));
+
+  // fall through to index.html if the file doesn't exist
+  app.use("/{*path}", (_req, res) => {
+    res.sendFile(path.resolve(distPath, "index.html"));
+  });
 }

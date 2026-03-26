@@ -129,7 +129,7 @@ window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bb
   });
 
   // ─── Public: Create reservation (status = pending until owner confirms) ─────────
-  app.post("/api/reservations", async (req, res) => {
+  app.post("/api/reservations", (req, res) => {
     const parsed = insertReservationSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
@@ -149,14 +149,16 @@ window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bb
     // Owner alert WhatsApp URL (for dashboard use)
     const alertUrl = ownerAlertUrl(reservation, avail.coversBooked);
 
-    // Fire Make.com webhook FIRST (await it so we can log the result in the response)
+    // Respond immediately
+    res.status(201).json({ reservation, ownerAlertUrl: alertUrl });
+
+    // Fire Make.com webhook in background (non-blocking setTimeout to avoid blocking response)
     const snap = { ...reservation };
     const covers = avail.coversBooked;
     const makeUrl = process.env.MAKE_WEBHOOK_URL;
-    let webhookStatus = "skipped";
-    if (makeUrl) {
-      try {
-        const wRes = await fetch(makeUrl, {
+    setTimeout(() => {
+      if (makeUrl) {
+        fetch(makeUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -171,19 +173,13 @@ window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bb
             coversAfter: covers + snap.partySize,
             dashboardUrl: "https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/go-admin.html",
           }),
-        });
-        webhookStatus = `${wRes.status} ${await wRes.text()}`;
-        console.log(`[WEBHOOK OK] Make.com #${snap.id} => ${webhookStatus}`);
-      } catch (e: any) {
-        webhookStatus = `ERROR: ${e.message}`;
-        console.error(`[WEBHOOK FAIL] Make.com #${snap.id}:`, e.message);
+        })
+          .then(async (r) => console.log(`[WEBHOOK OK] Make.com #${snap.id} status=${r.status}`))
+          .catch((e: any) => console.error(`[WEBHOOK FAIL] Make.com #${snap.id}:`, e.message, e.cause?.message || ''));
+      } else {
+        console.error(`[WEBHOOK] MAKE_WEBHOOK_URL not set!`);
       }
-    } else {
-      console.error(`[WEBHOOK] MAKE_WEBHOOK_URL not set!`);
-    }
-
-    // Respond with webhook status for diagnostics
-    res.status(201).json({ reservation, ownerAlertUrl: alertUrl, _webhookStatus: webhookStatus });
+    }, 100);
   });
 
   // ─── Admin: Confirm reservation (sends customer notification) ─────────────────
@@ -208,29 +204,30 @@ window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bb
 
     res.json({ reservation: updated, whatsappUrl });
 
-    // Fire customer confirmation via Make.com webhook
+    // Fire customer confirmation via Make.com webhook (non-blocking)
     const confirmedSnap = { ...updated };
     const confirmWebhookUrl = process.env.MAKE_CONFIRM_WEBHOOK_URL;
-    console.log(`[CONFIRM WEBHOOK] url=${confirmWebhookUrl ? 'SET' : 'MISSING'} email=${confirmedSnap.email || 'NONE'}`);
-    if (confirmWebhookUrl && confirmedSnap.email) {
-      fetch(confirmWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: confirmedSnap.id,
-          name: confirmedSnap.name,
-          email: confirmedSnap.email,
-          phone: confirmedSnap.phone,
-          date: confirmedSnap.date,
-          time: confirmedSnap.time,
-          partySize: confirmedSnap.partySize,
-          tableLabel: confirmedSnap.tableLabel || "",
-          notes: confirmedSnap.notes || "",
-        }),
-      })
-        .then(async (r) => console.log(`[CONFIRM WEBHOOK OK] #${confirmedSnap.id} status=${r.status}`))
-        .catch((e: any) => console.error(`[CONFIRM WEBHOOK FAIL] #${confirmedSnap.id}:`, e.message, e.cause?.message || ''));
-    }
+    setTimeout(() => {
+      if (confirmWebhookUrl && confirmedSnap.email) {
+        fetch(confirmWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: confirmedSnap.id,
+            name: confirmedSnap.name,
+            email: confirmedSnap.email,
+            phone: confirmedSnap.phone,
+            date: confirmedSnap.date,
+            time: confirmedSnap.time,
+            partySize: confirmedSnap.partySize,
+            tableLabel: confirmedSnap.tableLabel || "",
+            notes: confirmedSnap.notes || "",
+          }),
+        })
+          .then(async (r) => console.log(`[CONFIRM WEBHOOK OK] #${confirmedSnap.id} status=${r.status}`))
+          .catch((e: any) => console.error(`[CONFIRM WEBHOOK FAIL] #${confirmedSnap.id}:`, e.message, e.cause?.message || ''));
+      }
+    }, 100);
   });
 
   // ─── Admin: Get all reservations ────────────────────────────────────────────
