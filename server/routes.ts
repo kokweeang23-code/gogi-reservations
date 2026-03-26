@@ -28,7 +28,7 @@ function ownerAlertUrl(reservation: any, coversBooked: number): string {
     `👥 Party: ${reservation.partySize} pax\n` +
     `${reservation.notes ? `📝 Notes: ${reservation.notes}\n` : ""}` +
     `\n📊 Slot load: ${totalAfter}/${Storage.MAX_COVERS_PER_SLOT} covers\n` +
-    `🔗 Dashboard: https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/#/admin`
+    `🔗 Dashboard: https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/?admin`
   );
   return `https://wa.me/${OWNER_PHONE}?text=${msg}`;
 }
@@ -144,7 +144,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             partySize: snap.partySize,
             notes: snap.notes || "",
             coversAfter: covers + snap.partySize,
-            dashboardUrl: "https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/#/admin",
+            dashboardUrl: "https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/?admin",
           }),
         })
           .then(() => console.log(`[WEBHOOK OK] Make.com notified for booking #${snap.id}`))
