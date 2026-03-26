@@ -179,12 +179,29 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     res.json({ reservation: updated, whatsappUrl });
 
-    // Fire customer confirmation email in background
-    const snap = { ...updated };
+    // Fire customer confirmation via Make.com webhook (bypasses Railway SMTP block)
+    const confirmedSnap = { ...updated };
+    const confirmWebhookUrl = process.env.MAKE_CONFIRM_WEBHOOK_URL;
     setTimeout(() => {
-      sendCustomerConfirmation(snap)
-        .then(() => console.log(`[EMAIL OK] Customer confirmation #${snap.id}`))
-        .catch((e: any) => console.error(`[EMAIL FAIL] Customer:`, e.message));
+      if (confirmWebhookUrl && confirmedSnap.email) {
+        fetch(confirmWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: confirmedSnap.id,
+            name: confirmedSnap.name,
+            email: confirmedSnap.email,
+            phone: confirmedSnap.phone,
+            date: confirmedSnap.date,
+            time: confirmedSnap.time,
+            partySize: confirmedSnap.partySize,
+            tableLabel: confirmedSnap.tableLabel || "",
+            notes: confirmedSnap.notes || "",
+          }),
+        })
+          .then(() => console.log(`[WEBHOOK OK] Customer confirmation #${confirmedSnap.id}`))
+          .catch((e: any) => console.error(`[WEBHOOK FAIL] Customer confirmation:`, e.message));
+      }
     }, 0);
   });
 
