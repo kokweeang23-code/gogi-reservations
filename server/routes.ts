@@ -124,10 +124,33 @@ export function registerRoutes(httpServer: Server, app: Express) {
     // Respond immediately — status is PENDING, customer waits for owner confirmation
     res.status(201).json({ reservation, ownerAlertUrl: alertUrl });
 
-    // Fire owner alert email in background (non-blocking)
+    // Fire Make.com webhook + owner alert in background (non-blocking)
     const snap = { ...reservation };
     const covers = avail.coversBooked;
+    const makeUrl = process.env.MAKE_WEBHOOK_URL;
     setTimeout(() => {
+      // Make.com webhook — triggers email notification via Make scenario
+      if (makeUrl) {
+        fetch(makeUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: snap.id,
+            name: snap.name,
+            phone: snap.phone,
+            email: snap.email || "",
+            date: snap.date,
+            time: snap.time,
+            partySize: snap.partySize,
+            notes: snap.notes || "",
+            coversAfter: covers + snap.partySize,
+            dashboardUrl: "https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/#/admin",
+          }),
+        })
+          .then(() => console.log(`[WEBHOOK OK] Make.com notified for booking #${snap.id}`))
+          .catch((e: any) => console.error(`[WEBHOOK FAIL] Make.com:`, e.message));
+      }
+      // Fallback Resend email alert
       sendOwnerAlert(snap, covers)
         .then(() => console.log(`[EMAIL OK] Owner alert #${snap.id}`))
         .catch((e: any) => console.error(`[EMAIL FAIL] Owner:`, e.message));
