@@ -214,10 +214,6 @@ export default function BookingPage() {
     onSuccess: (data) => {
       setConfirmData(data);
       setStep("success");
-      // Auto-open owner WhatsApp alert in a new tab
-      if (data.ownerAlertUrl) {
-        window.open(data.ownerAlertUrl, "_blank", "noopener,noreferrer");
-      }
     },
     onError: (err: any) => {
       toast({
@@ -307,7 +303,7 @@ export default function BookingPage() {
 
   // ─── Success step ─────────────────────────────────────────────────────────
   if (step === "success" && confirmData) {
-    const { reservation, whatsappUrl } = confirmData;
+    const { reservation, whatsappUrl, ownerAlertUrl } = confirmData as any;
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
@@ -326,16 +322,33 @@ export default function BookingPage() {
                 <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-medium">{reservation.time}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Party</span><span className="font-medium">{reservation.partySize} {reservation.partySize === 1 ? "person" : "persons"}</span></div>
               </div>
+
+              {/* Step 1: Confirm to guest */}
+              <p className="text-xs text-muted-foreground text-left mb-2 font-semibold uppercase tracking-wide">Step 1 — Send to guest</p>
               <a
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white rounded-xl py-3 px-4 font-semibold transition-colors mb-3"
+                className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white rounded-xl py-3 px-4 font-semibold transition-colors mb-4"
                 data-testid="link-whatsapp-confirmation"
               >
                 <MessageCircle className="w-5 h-5" />
-                Send WhatsApp Confirmation
+                Send Confirmation to Guest
               </a>
+
+              {/* Step 2: Alert restaurant owner */}
+              <p className="text-xs text-muted-foreground text-left mb-2 font-semibold uppercase tracking-wide">Step 2 — Notify restaurant</p>
+              <a
+                href={ownerAlertUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-[#1e1a16] hover:bg-[#2d2925] text-white rounded-xl py-3 px-4 font-semibold transition-colors mb-6"
+                data-testid="link-owner-alert"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Alert Restaurant
+              </a>
+
               <Button
                 variant="outline"
                 className="w-full"
