@@ -6,6 +6,15 @@ import { createServer } from "http";
 const app = express();
 const httpServer = createServer(app);
 
+// Allow cross-origin requests from the Perplexity-hosted frontend
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type,x-admin-token");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;

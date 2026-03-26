@@ -1,9 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Use Railway backend in production, local server in dev
-export const API_BASE = "__PORT_5000__".startsWith("__")
-  ? "https://gogi-reservations-production.up.railway.app"
-  : "__PORT_5000__";
+// Always point to the permanent Railway backend
+export const API_BASE = "https://gogi-reservations-production.up.railway.app";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
