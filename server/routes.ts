@@ -132,30 +132,31 @@ export function registerRoutes(httpServer: Server, app: Express) {
     // Owner alert WhatsApp URL — returned so dashboard can trigger it
     const alertUrl = ownerAlertUrl(reservation, avail.coversBooked);
 
-    // Send response immediately — customer never waits for email
-    res.status(201).json({
+    // Build response payload
+    const payload = {
       reservation,
       whatsappUrl,
       ownerAlertUrl: alertUrl,
       confirmationMessage: decodeURIComponent(customerMsg),
-    });
+    };
 
-    // Fire emails after response is flushed — completely decoupled
+    // Capture email params before closing over the response
+    const reservationId = reservation.id;
     const coversBooked = avail.coversBooked;
-    setTimeout(async () => {
-      try {
-        await sendOwnerAlert(reservation, coversBooked);
-        console.log(`[EMAIL OK] Owner alert sent for booking #${reservation.id}`);
-      } catch (e: any) {
-        console.error(`[EMAIL FAIL] Owner alert:`, e.message);
-      }
-      try {
-        await sendCustomerConfirmation(reservation);
-        console.log(`[EMAIL OK] Customer confirmation sent for booking #${reservation.id}`);
-      } catch (e: any) {
-        console.error(`[EMAIL FAIL] Customer confirmation:`, e.message);
-      }
-    }, 100);
+    const reservationSnap = { ...reservation };
+
+    // Flush response to client NOW, then fire emails
+    res.status(201);
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(payload), () => {
+      // This callback fires AFTER the response is fully flushed to the client
+      sendOwnerAlert(reservationSnap, coversBooked)
+        .then(() => console.log(`[EMAIL OK] Owner alert #${reservationId}`))
+        .catch((e: any) => console.error(`[EMAIL FAIL] Owner alert:`, e.message));
+      sendCustomerConfirmation(reservationSnap)
+        .then(() => console.log(`[EMAIL OK] Customer confirmation #${reservationId}`))
+        .catch((e: any) => console.error(`[EMAIL FAIL] Customer confirmation:`, e.message));
+    });
   });
 
   // ─── Admin: Get all reservations ────────────────────────────────────────────

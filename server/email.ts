@@ -1,7 +1,11 @@
 import { Resend } from "resend";
 import dns from "dns";
+import https from "https";
 // Force IPv4 so Railway (which blocks IPv6 outbound) can reach Resend's API
 dns.setDefaultResultOrder("ipv4first");
+
+// Use a custom HTTPS agent with a short connection timeout
+const agent = new https.Agent({ family: 4, timeout: 8000 });
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_5pyzUKq2_Cqamy5qEsfo8eVfS5jaytLqs");
 
