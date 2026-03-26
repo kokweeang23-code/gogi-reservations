@@ -316,7 +316,7 @@ export default function BookingPage() {
               </div>
               <h2 className="text-xl font-bold mb-2">Request Received!</h2>
               <p className="text-muted-foreground text-sm mb-6">
-                Booking #{reservation.id} for <strong>{reservation.name}</strong>
+                Booking for <strong>{reservation.name}</strong>
               </p>
 
               {/* Booking summary */}
