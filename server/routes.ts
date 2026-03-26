@@ -28,7 +28,7 @@ function ownerAlertUrl(reservation: any, coversBooked: number): string {
     `👥 Party: ${reservation.partySize} pax\n` +
     `${reservation.notes ? `📝 Notes: ${reservation.notes}\n` : ""}` +
     `\n📊 Slot load: ${totalAfter}/${Storage.MAX_COVERS_PER_SLOT} covers\n` +
-    `🔗 Dashboard: https://gogi-reservations-production.up.railway.app/api/go-admin`
+    `🔗 Dashboard: https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/go-admin.html`
   );
   return `https://wa.me/${OWNER_PHONE}?text=${msg}`;
 }
@@ -41,7 +41,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ─── Admin redirect — email clients strip # so we use an /api/ route ───
   // /api/* routes bypass Railway CDN and hit Express directly
-  // Email link: https://gogi-reservations-production.up.railway.app/api/go-admin
+  // Email link: https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/go-admin.html
   app.get("/api/go-admin", (_req, res) => {
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Redirecting to Staff Dashboard...</title>
@@ -155,7 +155,7 @@ window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bb
             partySize: snap.partySize,
             notes: snap.notes || "",
             coversAfter: covers + snap.partySize,
-            dashboardUrl: "https://gogi-reservations-production.up.railway.app/api/go-admin",
+            dashboardUrl: "https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/go-admin.html",
           }),
         })
           .then(() => console.log(`[WEBHOOK OK] Make.com notified for booking #${snap.id}`))
