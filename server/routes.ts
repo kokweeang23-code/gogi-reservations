@@ -137,30 +137,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
     // Owner alert WhatsApp URL — returned so dashboard can trigger it
     const alertUrl = ownerAlertUrl(reservation, avail.coversBooked);
 
-    // Build response payload
-    const payload = {
+    // Return booking confirmation immediately
+    res.status(201).json({
       reservation,
       whatsappUrl,
       ownerAlertUrl: alertUrl,
       confirmationMessage: decodeURIComponent(customerMsg),
-    };
-
-    // Capture email params before closing over the response
-    const reservationId = reservation.id;
-    const coversBooked = avail.coversBooked;
-    const reservationSnap = { ...reservation };
-
-    // Flush response to client NOW, then fire emails
-    res.status(201);
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify(payload), () => {
-      // This callback fires AFTER the response is fully flushed to the client
-      sendOwnerAlert(reservationSnap, coversBooked)
-        .then(() => console.log(`[EMAIL OK] Owner alert #${reservationId}`))
-        .catch((e: any) => console.error(`[EMAIL FAIL] Owner alert:`, e.message));
-      sendCustomerConfirmation(reservationSnap)
-        .then(() => console.log(`[EMAIL OK] Customer confirmation #${reservationId}`))
-        .catch((e: any) => console.error(`[EMAIL FAIL] Customer confirmation:`, e.message));
     });
   });
 
