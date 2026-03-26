@@ -3,8 +3,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --production=false
 COPY . .
-# v3 build - Make.com webhooks only, no Resend fallback
-RUN npm run build
+# DO NOT run npm run build - use pre-committed dist/ to keep asset hashes stable
+# Running build inside Docker creates different hashes that confuse Railway CDN
 EXPOSE 8080
 ENV PORT=8080
 ENV NODE_ENV=production
