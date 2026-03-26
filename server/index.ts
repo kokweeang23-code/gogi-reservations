@@ -23,6 +23,13 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
+// Admin redirect — must be registered BEFORE static middleware and BEFORE routes
+// Email clients strip # fragments, so owner alert email links here and we JS-redirect to /#/admin
+app.get("/api/go-admin", (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Redirecting...</title><script>window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/#/admin");</script></head><body>Redirecting to staff dashboard...</body></html>`);
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
