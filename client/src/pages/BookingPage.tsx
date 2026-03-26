@@ -333,7 +333,7 @@ export default function BookingPage() {
                 <ol className="space-y-1.5 text-amber-700/80 dark:text-amber-400/80 text-xs">
                   <li className="flex items-start gap-2"><span className="font-bold shrink-0">1.</span>Our team reviews your request</li>
                   <li className="flex items-start gap-2"><span className="font-bold shrink-0">2.</span>You'll receive a confirmation within 24 hours</li>
-                  <li className="flex items-start gap-2"><span className="font-bold shrink-0">3.</span>Check your {reservation.email ? "email and " : ""}WhatsApp for updates</li>
+                  <li className="flex items-start gap-2"><span className="font-bold shrink-0">3.</span>Check your email and/or WhatsApp for confirmation</li>
                 </ol>
               </div>
 
