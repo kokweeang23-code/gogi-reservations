@@ -100,7 +100,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     res.json(result);
   });
 
-  // ─── Public: Create reservation ─────────────────────────────────────────────
+  // ─── Public: Create reservation (status = pending until owner confirms) ─────────
   app.post("/api/reservations", (req, res) => {
     const parsed = insertReservationSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -118,32 +118,51 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     const reservation = storage.createReservation(parsed.data);
 
-    // Customer WhatsApp confirmation URL
-    const customerMsg = encodeURIComponent(
-      `🔥 Booking Confirmed — The Gogi @ Alexandra Central\n\n` +
-      `Dear ${reservation.name},\n` +
-      `Your reservation has been confirmed!\n\n` +
-      `📅 Date: ${reservation.date}\n` +
-      `⏰ Time: ${reservation.time}\n` +
-      `👥 Party: ${reservation.partySize} pax\n\n` +
-      `📍 321 Alexandra Rd, #02-01 Alexandra Central, Singapore 159971\n` +
-      `📞 +65 8181 7221\n\n` +
-      `See you soon! Please arrive 5 min early. To cancel, reply to this message.`
-    );
-    const rawPhone = reservation.phone.replace(/\D/g, "");
-    const custPhone = rawPhone.startsWith("65") ? rawPhone : `65${rawPhone}`;
-    const whatsappUrl = `https://wa.me/${custPhone}?text=${customerMsg}`;
-
-    // Owner alert WhatsApp URL — returned so dashboard can trigger it
+    // Owner alert WhatsApp URL (for dashboard use)
     const alertUrl = ownerAlertUrl(reservation, avail.coversBooked);
 
-    // Return booking confirmation immediately
-    res.status(201).json({
-      reservation,
-      whatsappUrl,
-      ownerAlertUrl: alertUrl,
-      confirmationMessage: decodeURIComponent(customerMsg),
-    });
+    // Respond immediately — status is PENDING, customer waits for owner confirmation
+    res.status(201).json({ reservation, ownerAlertUrl: alertUrl });
+
+    // Fire owner alert email in background (non-blocking)
+    const snap = { ...reservation };
+    const covers = avail.coversBooked;
+    setTimeout(() => {
+      sendOwnerAlert(snap, covers)
+        .then(() => console.log(`[EMAIL OK] Owner alert #${snap.id}`))
+        .catch((e: any) => console.error(`[EMAIL FAIL] Owner:`, e.message));
+    }, 0);
+  });
+
+  // ─── Admin: Confirm reservation (sends customer notification) ─────────────────
+  app.patch("/api/admin/reservations/:id/confirm", (req, res) => {
+    if (!isAdmin(req)) return res.status(401).json({ error: "Unauthorized" });
+    const id = parseInt(req.params.id);
+    const updated = storage.updateReservationStatus(id, "confirmed");
+    if (!updated) return res.status(404).json({ error: "Not found" });
+
+    // Build customer WhatsApp URL
+    const rawPhone = updated.phone.replace(/\D/g, "");
+    const custPhone = rawPhone.startsWith("65") ? rawPhone : `65${rawPhone}`;
+    const waMsg = encodeURIComponent(
+      `🔥 Booking Confirmed — The Gogi @ Alexandra Central\n\n` +
+      `Dear ${updated.name},\nYour reservation has been confirmed!\n\n` +
+      `📅 Date: ${updated.date}\n⏰ Time: ${updated.time}\n👥 Party: ${updated.partySize} pax\n` +
+      (updated.tableLabel ? `🪑 Table: ${updated.tableLabel}\n` : "") +
+      `\n📍 321 Alexandra Rd, #02-01 Alexandra Central, S 159971\n📞 +65 8181 7221\n\n` +
+      `See you soon! Please arrive 5 min early. To cancel, reply to this message.`
+    );
+    const whatsappUrl = `https://wa.me/${custPhone}?text=${waMsg}`;
+
+    res.json({ reservation: updated, whatsappUrl });
+
+    // Fire customer confirmation email in background
+    const snap = { ...updated };
+    setTimeout(() => {
+      sendCustomerConfirmation(snap)
+        .then(() => console.log(`[EMAIL OK] Customer confirmation #${snap.id}`))
+        .catch((e: any) => console.error(`[EMAIL FAIL] Customer:`, e.message));
+    }, 0);
   });
 
   // ─── Admin: Get all reservations ────────────────────────────────────────────

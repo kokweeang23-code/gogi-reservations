@@ -301,7 +301,7 @@ export default function BookingPage() {
     );
   }
 
-  // ─── Success step ─────────────────────────────────────────────────────────
+  // ─── Success step (PENDING — awaiting owner confirmation) ──────────────────
   if (step === "success" && confirmData) {
     const { reservation } = confirmData as any;
     return (
@@ -310,31 +310,37 @@ export default function BookingPage() {
         <main className="flex-1 flex items-center justify-center px-4 py-12">
           <div className="w-full max-w-md text-center">
             <div className="bg-card rounded-2xl shadow-lg border border-border p-8">
-              <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+              {/* Pending icon — clock, not checkmark */}
+              <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400" />
               </div>
-              <h2 className="text-xl font-bold mb-2">Booking Confirmed!</h2>
+              <h2 className="text-xl font-bold mb-2">Request Received!</h2>
               <p className="text-muted-foreground text-sm mb-6">
-                Reservation #{reservation.id} for <strong>{reservation.name}</strong>
+                Booking #{reservation.id} for <strong>{reservation.name}</strong>
               </p>
+
+              {/* Booking summary */}
               <div className="bg-muted rounded-xl p-4 text-sm text-left space-y-2 mb-6">
                 <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium">{format(new Date(reservation.date + "T00:00:00"), "EEE, d MMM yyyy")}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-medium">{reservation.time}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Party</span><span className="font-medium">{reservation.partySize} {reservation.partySize === 1 ? "person" : "persons"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Status</span><span className="font-medium text-amber-600 dark:text-amber-400">Pending confirmation</span></div>
               </div>
 
-              {/* Auto email notice */}
-              <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-6 text-left">
-                <p className="text-emerald-700 dark:text-emerald-400 text-sm font-medium flex items-center gap-2">
-                  <Mail className="w-4 h-4 shrink-0" />
-                  Confirmation emails sent automatically
-                </p>
-                <p className="text-emerald-600/70 dark:text-emerald-500/70 text-xs mt-1">
-                  {reservation.email
-                    ? `A confirmation has been sent to ${reservation.email} and the restaurant.`
-                    : "The restaurant has been notified of your booking."}
-                </p>
+              {/* What happens next */}
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 text-left">
+                <p className="text-amber-700 dark:text-amber-400 text-sm font-semibold mb-2">What happens next?</p>
+                <ol className="space-y-1.5 text-amber-700/80 dark:text-amber-400/80 text-xs">
+                  <li className="flex items-start gap-2"><span className="font-bold shrink-0">1.</span>Our team reviews your request</li>
+                  <li className="flex items-start gap-2"><span className="font-bold shrink-0">2.</span>You'll receive a confirmation within 24 hours</li>
+                  <li className="flex items-start gap-2"><span className="font-bold shrink-0">3.</span>Check your {reservation.email ? "email and " : ""}WhatsApp for updates</li>
+                </ol>
               </div>
+
+              {/* Contact */}
+              <p className="text-xs text-muted-foreground mb-6">
+                Questions? Call us at <strong>+65 8181 7221</strong> or WhatsApp us directly.
+              </p>
 
               <Button
                 className="w-full bg-primary hover:bg-primary/90"

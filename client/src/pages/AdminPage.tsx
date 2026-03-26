@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Calendar, Clock, Users, Phone, Mail, CheckCircle2, XCircle, AlertCircle,
+  Calendar, Clock, Users, Phone, Mail, CheckCircle2,
   MessageCircle, Search, Download, ChevronLeft, ChevronRight, TrendingUp, Flame, LogIn
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -86,11 +86,11 @@ function Dashboard() {
   // Stats
   const { data: stats, isLoading: statsLoading } = useQuery<{
     todayCount: number; weekCount: number; todayCovers: number; weekCovers: number;
-    upcomingToday: Reservation[];
+    pendingCount: number; upcomingToday: Reservation[];
   }>({
     queryKey: ["/api/admin/stats"],
     queryFn: () => fetch(`${API_BASE}/api/admin/stats`, { headers }).then(r => r.json()),
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   // Reservations for selected date
@@ -112,6 +112,24 @@ function Dashboard() {
   const { data: calendarData = {} } = useQuery<Record<string, { count: number; covers: number }>>({
     queryKey: ["/api/admin/calendar", weekStart, weekEnd],
     queryFn: () => fetch(`${API_BASE}/api/admin/calendar?from=${weekStart}&to=${weekEnd}`, { headers }).then(r => r.json()),
+  });
+
+  // Confirm reservation mutation
+  const confirmMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${API_BASE}/api/admin/reservations/${id}/confirm`, {
+        method: "PATCH",
+        headers,
+      }).then(r => r.json()),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: "Booking confirmed", description: "Customer notification sent" });
+      // Open WhatsApp link for manual send
+      if (data.whatsappUrl) {
+        window.open(data.whatsappUrl, "_blank", "noopener,noreferrer");
+      }
+    },
   });
 
   // Table assignment mutation
@@ -199,8 +217,20 @@ function Dashboard() {
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* KPI row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Pending alert — shown prominently if there are pending bookings */}
+          {(stats?.pendingCount ?? 0) > 0 ? (
+            <div className="col-span-2 md:col-span-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-400/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-bold text-amber-800 dark:text-amber-300">{stats!.pendingCount} booking{stats!.pendingCount > 1 ? "s" : ""} awaiting your confirmation</p>
+                <p className="text-xs text-amber-600/80 dark:text-amber-400/70">Find them highlighted in amber below — assign a table and click Confirm</p>
+              </div>
+            </div>
+          ) : null}
           <KPICard
-            label="Today's Bookings"
+            label="Today Confirmed"
             value={statsLoading ? "—" : String(stats?.todayCount ?? 0)}
             sub="reservations"
             icon={<Calendar className="w-4 h-4" />}
@@ -216,7 +246,7 @@ function Dashboard() {
           <KPICard
             label="This Week"
             value={statsLoading ? "—" : String(stats?.weekCount ?? 0)}
-            sub="reservations"
+            sub="confirmed"
             icon={<TrendingUp className="w-4 h-4" />}
             color="success"
           />
@@ -298,7 +328,7 @@ function Dashboard() {
             ) : (
               <div className="divide-y divide-border">
                 {searchResults.slice(0, 20).map(r => (
-                  <ReservationRow key={r.id} reservation={r} onStatusChange={(id, s) => statusMutation.mutate({ id, status: s })} onTableChange={(id, label) => tableMutation.mutate({ id, label })} waLink={getWALink(r)} />
+                  <ReservationRow key={r.id} reservation={r} onStatusChange={(id, s) => statusMutation.mutate({ id, status: s })} onTableChange={(id, label) => tableMutation.mutate({ id, label })} onConfirm={(id) => confirmMutation.mutate(id)} waLink={getWALink(r)} />
                 ))}
               </div>
             )}
@@ -336,7 +366,7 @@ function Dashboard() {
                 {dayRes
                   .sort((a, b) => a.time.localeCompare(b.time))
                   .map(r => (
-                    <ReservationRow key={r.id} reservation={r} onStatusChange={(id, s) => statusMutation.mutate({ id, status: s })} onTableChange={(id, label) => tableMutation.mutate({ id, label })} waLink={getWALink(r)} />
+                    <ReservationRow key={r.id} reservation={r} onStatusChange={(id, s) => statusMutation.mutate({ id, status: s })} onTableChange={(id, label) => tableMutation.mutate({ id, label })} onConfirm={(id) => confirmMutation.mutate(id)} waLink={getWALink(r)} />
                   ))}
               </div>
             )}
@@ -377,11 +407,13 @@ function ReservationRow({
   reservation: r,
   onStatusChange,
   onTableChange,
+  onConfirm,
   waLink,
 }: {
   reservation: Reservation;
   onStatusChange: (id: number, status: string) => void;
   onTableChange: (id: number, label: string) => void;
+  onConfirm: (id: number) => void;
   waLink: string;
 }) {
   const [tableInput, setTableInput] = useState(r.tableLabel ?? "");
@@ -395,7 +427,7 @@ function ReservationRow({
   };
 
   return (
-    <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3" data-testid={`reservation-row-${r.id}`}>
+    <div className={`px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 ${ r.status === "pending" ? "bg-amber-50/60 dark:bg-amber-900/10 border-l-2 border-amber-400" : "" }`} data-testid={`reservation-row-${r.id}`}>
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0 tabular">
           {r.time}
@@ -419,6 +451,16 @@ function ReservationRow({
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        {/* Confirm button for pending bookings */}
+        {r.status === "pending" && (
+          <button
+            onClick={() => onConfirm(r.id)}
+            data-testid={`button-confirm-${r.id}`}
+            className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors flex items-center gap-1"
+          >
+            ✓ Confirm
+          </button>
+        )}
         {/* Table assignment input */}
         <div className="flex items-center gap-1" title="Assign table">
           <input
@@ -445,6 +487,7 @@ function ReservationRow({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="confirmed">Confirmed</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
             <SelectItem value="no_show">No Show</SelectItem>
@@ -489,6 +532,7 @@ function KPICard({ label, value, sub, icon, color }: {
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
+  if (status === "pending") return <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-xs px-2 py-0.5 rounded-full font-medium">Pending</span>;
   if (status === "confirmed") return <span className="status-confirmed text-xs px-2 py-0.5 rounded-full font-medium">Confirmed</span>;
   if (status === "cancelled") return <span className="status-cancelled text-xs px-2 py-0.5 rounded-full font-medium">Cancelled</span>;
   return <span className="status-no_show text-xs px-2 py-0.5 rounded-full font-medium">No Show</span>;

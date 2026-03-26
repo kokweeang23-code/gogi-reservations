@@ -152,7 +152,7 @@ export class Storage implements IStorage {
     const now = new Date().toISOString();
     const result = db.insert(reservations).values({
       ...data,
-      status: "confirmed",
+      status: "pending", // owner must confirm via dashboard
       createdAt: now,
       whatsappSent: 0,
       tableId: null, // owner assigns manually via dashboard
@@ -296,11 +296,17 @@ export class Storage implements IStorage {
     const nowHHMM = new Date().toTimeString().slice(0, 5);
     const upcomingToday = todayRes.filter(r => r.time >= nowHHMM).sort((a, b) => a.time.localeCompare(b.time)).slice(0, 10);
 
+    // Count pending (awaiting confirmation) across all future dates
+    const pendingAll = db.select().from(reservations)
+      .where(eq(reservations.status, "pending"))
+      .all();
+
     return {
-      todayCount: todayRes.length,
-      weekCount: weekRes.length,
-      todayCovers: todayRes.reduce((s, r) => s + r.partySize, 0),
-      weekCovers: weekRes.reduce((s, r) => s + r.partySize, 0),
+      todayCount: todayRes.filter(r => r.status === "confirmed").length,
+      weekCount: weekRes.filter(r => r.status === "confirmed").length,
+      todayCovers: todayRes.filter(r => r.status === "confirmed").reduce((s, r) => s + r.partySize, 0),
+      weekCovers: weekRes.filter(r => r.status === "confirmed").reduce((s, r) => s + r.partySize, 0),
+      pendingCount: pendingAll.length,
       upcomingToday,
     };
   }
