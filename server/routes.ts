@@ -96,7 +96,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── Public: Create reservation ─────────────────────────────────────────────
-  app.post("/api/reservations", async (req, res) => {
+  app.post("/api/reservations", (req, res) => {
     const parsed = insertReservationSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
