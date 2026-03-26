@@ -12,7 +12,16 @@ app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "x-admin-token"],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }));
+
+// Prevent CDN from caching API responses (so CORS headers pass through)
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Surrogate-Control", "no-store");
+  next();
+});
 
 declare module "http" {
   interface IncomingMessage {
