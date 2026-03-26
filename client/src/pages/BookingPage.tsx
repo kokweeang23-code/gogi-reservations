@@ -210,7 +210,7 @@ export default function BookingPage() {
   // Submit reservation
   const bookMutation = useMutation({
     mutationFn: (data: BookingForm) =>
-      apiRequest("POST", "/api/reservations", data).then(r => r.json()),
+      apiRequest("POST", "/api/create-reservation", data).then(r => r.json()),
     onSuccess: (data) => {
       setConfirmData(data);
       setStep("success");
