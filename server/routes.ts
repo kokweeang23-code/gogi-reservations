@@ -113,18 +113,20 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     const reservation = storage.createReservation(parsed.data);
 
-    // Send emails synchronously so results are logged before response
-    const emailResults = await Promise.allSettled([
-      sendOwnerAlert(reservation, avail.coversBooked),
-      sendCustomerConfirmation(reservation),
-    ]);
-    emailResults.forEach((r, i) => {
-      const label = i === 0 ? "Owner alert" : "Customer confirmation";
-      if (r.status === "fulfilled") {
-        console.log(`[EMAIL OK] ${label} sent for booking #${reservation.id}`);
-      } else {
-        console.error(`[EMAIL FAIL] ${label} error:`, r.reason?.message || String(r.reason));
-      }
+    // Fire emails after response is sent — non-blocking
+    setImmediate(async () => {
+      const results = await Promise.allSettled([
+        sendOwnerAlert(reservation, avail.coversBooked),
+        sendCustomerConfirmation(reservation),
+      ]);
+      results.forEach((r, i) => {
+        const label = i === 0 ? "Owner alert" : "Customer confirmation";
+        if (r.status === "fulfilled") {
+          console.log(`[EMAIL OK] ${label} sent for booking #${reservation.id}`);
+        } else {
+          console.error(`[EMAIL FAIL] ${label}:`, (r.reason as any)?.message || String(r.reason));
+        }
+      });
     });
 
     // Customer WhatsApp confirmation URL
