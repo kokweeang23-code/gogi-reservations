@@ -1,6 +1,6 @@
 {
   "name": "rest-express",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -108,5 +108,6 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
-  }
+  },
+  "description": "v3-make-only-no-resend"
 }
