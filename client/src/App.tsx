@@ -9,21 +9,18 @@ import NotFound from "@/pages/not-found";
 import PerplexityAttribution from "@/components/PerplexityAttribution";
 import { useEffect } from "react";
 
-// Redirect ?admin query param to /#/admin (for email links where hash is stripped)
-function QueryParamRedirect() {
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("admin")) {
-      window.location.replace(window.location.pathname + "#/admin");
-    }
-  }, []);
-  return null;
+// Redirect ?admin query param to /#/admin (for email links where hash is stripped by email clients)
+// Runs immediately before React renders to avoid flash
+if (typeof window !== "undefined") {
+  const _sp = new URLSearchParams(window.location.search);
+  if (_sp.has("admin") && !window.location.hash.includes("/admin")) {
+    window.location.replace(window.location.pathname + "#/admin");
+  }
 }
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <QueryParamRedirect />
       <Router hook={useHashLocation}>
         <Switch>
           <Route path="/" component={BookingPage} />
