@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -6,14 +7,12 @@ import { createServer } from "http";
 const app = express();
 const httpServer = createServer(app);
 
-// Allow cross-origin requests from the Perplexity-hosted frontend
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type,x-admin-token");
-  if (req.method === "OPTIONS") return res.sendStatus(204);
-  next();
-});
+// Allow cross-origin requests from any frontend (Perplexity-hosted)
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "x-admin-token"],
+}));
 
 declare module "http" {
   interface IncomingMessage {
