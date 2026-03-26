@@ -74,7 +74,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // ─── Public: Create reservation ─────────────────────────────────────────────
-  app.post("/api/reservations", (req, res) => {
+  app.post("/api/reservations", async (req, res) => {
     const parsed = insertReservationSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
@@ -91,19 +91,18 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     const reservation = storage.createReservation(parsed.data);
 
-    // Fire emails server-side — run both, log all errors clearly
-    Promise.allSettled([
+    // Send emails synchronously so results are logged before response
+    const emailResults = await Promise.allSettled([
       sendOwnerAlert(reservation, avail.coversBooked),
       sendCustomerConfirmation(reservation),
-    ]).then(results => {
-      results.forEach((r, i) => {
-        const label = i === 0 ? "Owner alert" : "Customer confirmation";
-        if (r.status === "fulfilled") {
-          console.log(`[EMAIL OK] ${label} sent for booking #${reservation.id}`);
-        } else {
-          console.error(`[EMAIL FAIL] ${label} error:`, r.reason?.message || r.reason);
-        }
-      });
+    ]);
+    emailResults.forEach((r, i) => {
+      const label = i === 0 ? "Owner alert" : "Customer confirmation";
+      if (r.status === "fulfilled") {
+        console.log(`[EMAIL OK] ${label} sent for booking #${reservation.id}`);
+      } else {
+        console.error(`[EMAIL FAIL] ${label} error:`, r.reason?.message || String(r.reason));
+      }
     });
 
     // Customer WhatsApp confirmation URL
