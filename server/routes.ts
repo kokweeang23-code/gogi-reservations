@@ -171,7 +171,7 @@ window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bb
             partySize: snap.partySize,
             notes: snap.notes || "",
             coversAfter: covers + snap.partySize,
-            dashboardUrl: "https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/go-admin.html",
+            dashboardUrl: "https://www.perplexity.ai/computer/a/the-gogi-korean-bbq-reservatio-1MVmAMHmTwqUxVFEHuYhpg/#/admin",
           }),
         })
           .then(async (r) => console.log(`[WEBHOOK OK] Make.com #${snap.id} status=${r.status}`))
