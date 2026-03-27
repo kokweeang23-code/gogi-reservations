@@ -8,6 +8,13 @@ import { sendCustomerConfirmation, sendOwnerAlert } from "./email";
 // Simple admin token
 const ADMIN_TOKEN = "gogi-admin-2024";
 
+// Format date from YYYY-MM-DD to DD MMM YY
+function formatDate(dateStr: string): string {
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const [year, month, day] = dateStr.split("-");
+  return `${day} ${months[parseInt(month) - 1]} ${year.slice(2)}`;
+}
+
 // Owner WhatsApp number (Singapore)
 const OWNER_PHONE = "6598212766";
 
@@ -23,7 +30,7 @@ function ownerAlertUrl(reservation: any, coversBooked: number): string {
     `🔔 NEW BOOKING — The Gogi\n\n` +
     `👤 Guest: ${reservation.name}\n` +
     `📞 Phone: +65${reservation.phone.replace(/\D/g, "")}\n` +
-    `📅 Date: ${reservation.date}\n` +
+    `📅 Date: ${formatDate(reservation.date)}\n` +
     `⏰ Time: ${reservation.time}\n` +
     `👥 Party: ${reservation.partySize} pax\n` +
     `${reservation.notes ? `📝 Notes: ${reservation.notes}\n` : ""}` +
@@ -195,7 +202,7 @@ window.location.replace("https://www.perplexity.ai/computer/a/the-gogi-korean-bb
     const waMsg = encodeURIComponent(
       `🔥 Booking Confirmed — The Gogi @ Alexandra Central\n\n` +
       `Dear ${updated.name},\nYour reservation has been confirmed!\n\n` +
-      `📅 Date: ${updated.date}\n⏰ Time: ${updated.time}\n👥 Party: ${updated.partySize} pax\n` +
+      `📅 Date: ${formatDate(updated.date)}\n⏰ Time: ${updated.time}\n👥 Party: ${updated.partySize} pax\n` +
       (updated.tableLabel ? `🪑 Table: ${updated.tableLabel}\n` : "") +
       `\n📍 321 Alexandra Rd, #02-01 Alexandra Central, S 159971\n📞 +65 8181 7221\n\n` +
       `See you soon! Please arrive 5 min early. To cancel, reply to this message.`
