@@ -286,6 +286,7 @@ function Dashboard() {
                   data-testid={`calendar-day-${day}`}
                   className={`rounded-xl p-2 text-center transition-colors cursor-pointer ${
                     isSelected ? "bg-primary text-primary-foreground" :
+                    cal ? "bg-green-50 border-2 border-green-400 hover:bg-green-100" :
                     isToday ? "bg-primary/10 text-primary border border-primary/30" :
                     "hover:bg-muted"
                   }`}
@@ -293,7 +294,7 @@ function Dashboard() {
                   <p className="text-xs font-medium">{format(new Date(day), "EEE")}</p>
                   <p className="text-lg font-bold tabular">{format(new Date(day), "d")}</p>
                   {cal ? (
-                    <p className={`text-xs tabular ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                    <p className={`text-xs font-bold tabular ${isSelected ? "text-primary-foreground/80" : "text-green-600"}`}>
                       {cal.count} bkg
                     </p>
                   ) : (
